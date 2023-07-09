@@ -2,6 +2,7 @@ import numpy as np
 from abc import abstractmethod
 from dataclasses import dataclass
 from tqdm import tqdm
+import os
 
 aspect_ratio = 16.0 / 9.0
 width = 400  # 图像宽度
@@ -108,7 +109,14 @@ def random_in_unit_sphere():
         if np.linalg.norm(p) >= 1:
             continue
         return p
-    
+
+def random_in_hemisphere(normal):
+    in_unit_sphere = random_in_unit_sphere()
+    if in_unit_sphere.dot(normal) > 0.0: # In the same hemisphere as the normal
+        return in_unit_sphere
+    else:
+        return -in_unit_sphere
+
 @dataclass
 class Ray:
     orig: np.array
@@ -123,7 +131,7 @@ def ray_color(r, world, depth=0):
     rec = HitRecord(np.array([0., 0, 0]), np.array([0., 0, 0]), 0.0, False)
     res = np.array([0., 0, 0])
     if world.hit(r, 0, float('inf'), rec):
-        target = rec.p + rec.normal + random_in_unit_sphere()
+        target = rec.p + random_in_hemisphere(rec.normal)
         res = 0.5 * ray_color(Ray(rec.p, target - rec.p), world, depth-1)
     else:
         unit_direction = r.dir / np.linalg.norm(r.dir)
