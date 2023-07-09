@@ -1,6 +1,7 @@
 import numpy as np
 from abc import abstractmethod
 from dataclasses import dataclass
+from tqdm import tqdm
 
 aspect_ratio = 16.0 / 9.0
 width = 400  # 图像宽度
@@ -101,6 +102,13 @@ class HittableList(Hittable):
                 closest_so_far = rec.t
         return hit_anything
 
+def random_in_unit_sphere():
+    while True:
+        p = np.random.uniform(-1, 1, 3)
+        if np.linalg.norm(p) >= 1:
+            continue
+        return p
+    
 @dataclass
 class Ray:
     orig: np.array
@@ -108,11 +116,15 @@ class Ray:
     def at(self, t):
         return self.orig + t*self.dir
 
-def ray_color(r, world):
+def ray_color(r, world, depth=0):
+    #  If we've exceeded the ray bounce limit, no more light is gathered.
+    if (depth <= 0):
+        return np.array([0., 0, 0])
     rec = HitRecord(np.array([0., 0, 0]), np.array([0., 0, 0]), 0.0, False)
     res = np.array([0., 0, 0])
     if world.hit(r, 0, float('inf'), rec):
-        res = 0.5 * (rec.normal + np.array([1, 1, 1]))
+        target = rec.p + rec.normal + random_in_unit_sphere()
+        res = 0.5 * ray_color(Ray(rec.p, target - rec.p), world, depth-1)
     else:
         unit_direction = r.dir / np.linalg.norm(r.dir)
         t = 0.5 * (unit_direction[1] + 1.0)
@@ -137,10 +149,17 @@ def write_color_to_data_multi_samples(pixel_color:np.ndarray,  image_data:np.nda
     image_data[image_index, 1] = int(256 * np.clip(g, 0.0, 0.999))
     image_data[image_index, 2] = int(256 * np.clip(b, 0.0, 0.999))
 
+def write_color_to_data_multi_samples_with_gamma(pixel_color:np.ndarray,  image_data:np.ndarray, image_index:int, samples_per_pixel:int):
+    r = np.sqrt(pixel_color[0] / samples_per_pixel)
+    g = np.sqrt(pixel_color[1] / samples_per_pixel)
+    b = np.sqrt(pixel_color[2] / samples_per_pixel)
+    image_data[image_index, 0] = int(256 * np.clip(r, 0.0, 0.999))
+    image_data[image_index, 1] = int(256 * np.clip(g, 0.0, 0.999))
+    image_data[image_index, 2] = int(256 * np.clip(b, 0.0, 0.999))
 
-def paint(image_data:np.ndarray, world:HittableList, cam:Camera, samples_per_pixel:int):
+def paint(image_data:np.ndarray, world:HittableList, cam:Camera, samples_per_pixel:int, max_depth:int):
     image_index = 0
-    for j in range(height):
+    for j in tqdm(range(height)):
         jj = height - 1 - j
         for i in range(width):
             pixel_color = np.array([0., 0, 0])
@@ -148,8 +167,8 @@ def paint(image_data:np.ndarray, world:HittableList, cam:Camera, samples_per_pix
                 u = (i + np.random.random()) / (width-1)
                 v = (jj + np.random.random()) / (height-1)
                 r = cam.get_ray(u, v)
-                pixel_color += ray_color(r, world)
-            write_color_to_data_multi_samples(pixel_color, image_data, image_index, samples_per_pixel)
+                pixel_color += ray_color(r, world, max_depth)
+            write_color_to_data_multi_samples_with_gamma(pixel_color, image_data, image_index, samples_per_pixel)
             image_index+=1
             # write_color(pixel_color)
 
@@ -170,7 +189,7 @@ def main():
 
     image_data = np.zeros(dtype=np.uint8, shape =(width*height, channels))
 
-    paint(image_data, world, cam, samples_per_pixel=10)
+    paint(image_data, world, cam, samples_per_pixel=10, max_depth=5)
     print("done")
     write_ppm(image_data)
 
