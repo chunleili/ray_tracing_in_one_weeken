@@ -130,7 +130,7 @@ def ray_color(r, world, depth=0):
         return np.array([0., 0, 0])
     rec = HitRecord(np.array([0., 0, 0]), np.array([0., 0, 0]), 0.0, False)
     res = np.array([0., 0, 0])
-    if world.hit(r, 0, float('inf'), rec):
+    if world.hit(r, 0.001, float('inf'), rec):
         target = rec.p + random_in_hemisphere(rec.normal)
         res = 0.5 * ray_color(Ray(rec.p, target - rec.p), world, depth-1)
     else:
