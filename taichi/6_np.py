@@ -109,8 +109,8 @@ class Ray:
         return self.orig + t*self.dir
 
 def ray_color(r, world):
-    rec = HitRecord(np.array([0, 0, 0]), np.array([0, 0, 0]), 0.0, False)
-    res = np.array([0, 0, 0])
+    rec = HitRecord(np.array([0., 0, 0]), np.array([0., 0, 0]), 0.0, False)
+    res = np.array([0., 0, 0])
     if world.hit(r, 0, float('inf'), rec):
         res = 0.5 * (rec.normal + np.array([1, 1, 1]))
     else:
@@ -129,16 +129,27 @@ def write_color_to_data(pixel_color:np.ndarray, image_data:np.ndarray, image_ind
     image_data[image_index, 1] = int(255.999 * pixel_color[1])
     image_data[image_index, 2] = int(255.999 * pixel_color[2])
 
-def paint(image_data:np.ndarray, world:HittableList, cam:Camera):
+def write_color_to_data_multi_samples(pixel_color:np.ndarray,  image_data:np.ndarray, image_index:int, samples_per_pixel:int):
+    r = pixel_color[0] / samples_per_pixel
+    g = pixel_color[1] / samples_per_pixel
+    b = pixel_color[2] / samples_per_pixel
+    image_data[image_index, 0] = int(256 * np.clip(r, 0.0, 0.999))
+    image_data[image_index, 1] = int(256 * np.clip(g, 0.0, 0.999))
+    image_data[image_index, 2] = int(256 * np.clip(b, 0.0, 0.999))
+
+
+def paint(image_data:np.ndarray, world:HittableList, cam:Camera, samples_per_pixel:int):
     image_index = 0
     for j in range(height):
         jj = height - 1 - j
         for i in range(width):
-            u = i / (width-1)
-            v = jj / (height-1)
-            r = cam.get_ray(u, v)
-            pixel_color = ray_color(r, world)
-            write_color_to_data(pixel_color, image_data, image_index)
+            pixel_color = np.array([0., 0, 0])
+            for s in range(samples_per_pixel):
+                u = (i + np.random.random()) / (width-1)
+                v = (jj + np.random.random()) / (height-1)
+                r = cam.get_ray(u, v)
+                pixel_color += ray_color(r, world)
+            write_color_to_data_multi_samples(pixel_color, image_data, image_index, samples_per_pixel)
             image_index+=1
             # write_color(pixel_color)
 
@@ -152,14 +163,14 @@ def write_ppm(image_data):
 
 def main():
     world = HittableList()
-    world.add(Sphere(np.array([0, 0, -1]), 0.5))
+    world.add(Sphere(np.array([0., 0, -1]), 0.5))
     world.add(Sphere(np.array([0, -100.5, -1]), 100))
 
     cam = Camera()
 
     image_data = np.zeros(dtype=np.uint8, shape =(width*height, channels))
 
-    paint(image_data, world, cam)
+    paint(image_data, world, cam, samples_per_pixel=10)
     print("done")
     write_ppm(image_data)
 
