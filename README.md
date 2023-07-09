@@ -23,3 +23,4 @@ https://www.cs.rhodes.edu/welshc/COMP141_F16/ppmReader.html
 3. 增加一个球，用求根公式判断相交
 4. 根据法线渲染球
 5. 增加多个球以及代码重构
+6. 抽离摄像机类和增加反走样
